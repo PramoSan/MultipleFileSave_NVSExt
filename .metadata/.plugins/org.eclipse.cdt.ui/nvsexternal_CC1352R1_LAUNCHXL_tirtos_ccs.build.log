@@ -1,0 +1,8 @@
+
+**** Build of configuration Debug for project nvsexternal_CC1352R1_LAUNCHXL_tirtos_ccs ****
+
+/home/pramodh/ti/ccs1100/ccs/utils/bin/gmake -k -j 4 all -O 
+ 
+gmake[1]: 'nvsexternal_CC1352R1_LAUNCHXL_tirtos_ccs.out' is up to date.
+
+**** Build Finished ****

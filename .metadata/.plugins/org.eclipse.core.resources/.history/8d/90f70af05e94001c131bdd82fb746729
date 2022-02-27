@@ -1,0 +1,176 @@
+#include <string.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdio.h>
+
+/* Driver Header files */
+#include <ti/display/Display.h>
+#include <ti/drivers/NVS.h>
+
+/* Driver configuration */
+#include "ti_drivers_config.h"
+
+#define FOOTER "=================================================="
+#define MAXBUFLEN 50
+
+char buffer[MAXBUFLEN];
+char rbuffer[MAXBUFLEN];
+
+int i = 0;
+
+/*
+ *  ======== mainThread ========
+ */
+void *mainThread(void *arg0)
+{
+    uint_fast16_t wstatus, rstatus;
+    NVS_Handle nvsHandle;
+    NVS_Attrs regionAttrs;
+    NVS_Params nvsParams;
+    Display_Handle displayHandle;
+
+    Display_init();
+    NVS_init();
+    displayHandle = Display_open(Display_Type_UART, NULL);
+    if (displayHandle == NULL)
+    {
+        /* Display_open() failed */
+        while (1);
+    }
+
+    NVS_Params_init(&nvsParams);
+    nvsHandle = NVS_open(CONFIG_NVSEXTERNAL, &nvsParams);
+    if (nvsHandle == NULL)
+    {
+        Display_printf(displayHandle, 0, 0, "NVS_open() failed.");
+        return (NULL);
+    }
+
+    uint16_t newLen = 0;
+    uint16_t totalRead = 0;
+    uint16_t readRound = 0;
+    uint16_t round = 0;
+    uint16_t roundn = 0; //for final nvs read data display @line 117
+    int fileSize = 0;
+    uint8_t filecount = 3;
+    uint8_t fc = 1;
+    char  buf_fc[MAXBUFLEN];
+
+    NVS_getAttrs(nvsHandle, &regionAttrs);
+    size_t round_offset = 4;
+    sleep(1);
+    Display_printf(displayHandle, 0, 0, "\n ====================MAIN START==================== \n");
+
+    //erase everything at first
+   NVS_erase(nvsHandle, 0, regionAttrs.sectorSize);
+   NVS_write(nvsHandle, 0, 0, sizeof(MAXBUFLEN+1), NVS_WRITE_ERASE | NVS_WRITE_POST_VERIFY);
+   memset(rbuffer, 0, (MAXBUFLEN));
+   memset(buffer, 0, (MAXBUFLEN));
+
+    for(fc=1; fc <= filecount;)
+    {
+      char location[] = "/home/pramodh/file_read/rdfile";
+      snprintf(buf_fc, sizeof(buf_fc), "%d", fc);
+      snprintf(buf_fc, sizeof(buf_fc), "%s%d.txt", location,fc);
+     // Display_printf(displayHandle, 0, 0, "%s", buf_fc);
+
+   // FILE *fp = fopen("/home/pramodh/file_read/rdfile2.txt", "r");
+    FILE *fp = fopen(buf_fc, "r");
+    if (fp != NULL)
+    {
+        fseek(fp, 0, SEEK_END);
+        fileSize = ftell(fp);
+        fseek(fp, 0L, SEEK_SET);
+        Display_printf(displayHandle, 0, 0, "\n========================================");
+        Display_printf(displayHandle, 0, 0, "Accessing File%d ", fc);
+        Display_printf(displayHandle, 0, 0, "Total file size = %d ", fileSize);
+
+        readRound = ((fileSize % MAXBUFLEN) == 0)? 0 :1 ;
+        readRound += (fileSize/MAXBUFLEN);
+        Display_printf(displayHandle, 0, 0, "Need to read %d times \n", readRound);
+
+
+    while (round < (readRound+1))
+        {
+        Display_printf(displayHandle, 0, 0, "Writing round %d", round);
+        //Read from file and store on buffer here
+        fseek(fp, 0 + round * MAXBUFLEN, SEEK_CUR);
+        newLen = fread(buffer, sizeof(char), MAXBUFLEN, fp);
+
+        //Write to NVS
+        wstatus = NVS_write(nvsHandle, round_offset, (void *) buffer, sizeof(buffer), NVS_WRITE_POST_VERIFY);
+
+        totalRead += newLen;
+
+        memset(rbuffer, 0, (MAXBUFLEN));
+        memset(buffer, 0, (MAXBUFLEN));
+        round_offset = (MAXBUFLEN + 1)+ round_offset;
+        round++;
+        fseek(fp, 0L, SEEK_SET);
+        }
+
+    sleep(1);
+    if (ferror(fp) != 0)
+       {
+           Display_printf(displayHandle, 0, 0, "Error reading file");
+       }
+       else
+       {
+           buffer[newLen++] = '\0';
+       }
+       readRound += MAXBUFLEN;
+    }
+
+               fclose(fp);
+               fc= fc + 1;
+               round = 0;
+               sleep(1);
+
+    }
+    fc= fc - 1;
+
+    //display all chunks at once after writing
+    if(fc == filecount)
+        Display_printf(displayHandle, 0, 0, "\n Writing completed %d files written", fc);
+
+        {
+
+        Display_printf(displayHandle, 0, 0, "Reading contents");
+        Display_printf(displayHandle, 0, 0, "fileSize = %d ", fileSize);
+
+        uint16_t displayRound=0;
+        displayRound = ((fileSize % MAXBUFLEN) == 0)? 0 :1 ;
+        displayRound += (fileSize/MAXBUFLEN);
+        size_t round_offset = 4;
+
+        while (roundn < (displayRound))
+        {
+        Display_printf(displayHandle, 0, 0, "Reading round %d/%d \tfrom address: 0x%x ", roundn, displayRound, round_offset);
+        rstatus = NVS_read(nvsHandle, round_offset, rbuffer, sizeof(buffer));
+//        Display_printf(displayHandle, 0, 0, "Read status = %d", rstatus);
+//        Display_printf(displayHandle, 0, 0, "Reading from address: 0x%x \t| regionBase: 0x%x", round_offset, regionAttrs.regionBase);
+
+        Display_printf(displayHandle, 0, 0, "%s \n", rbuffer);
+        round_offset = (MAXBUFLEN + 1) + round_offset;
+        memset(rbuffer, 0, (MAXBUFLEN));
+        roundn++;
+        }
+
+        Display_printf(displayHandle, 0, 0, "END of elements Reading");
+        sleep(1);
+
+    }
+
+
+
+        //erase everything at end
+        NVS_erase(nvsHandle, 0, regionAttrs.sectorSize);
+        NVS_write(nvsHandle, 0, 0, sizeof(MAXBUFLEN+1), NVS_WRITE_ERASE | NVS_WRITE_POST_VERIFY);
+        memset(rbuffer, 0, (MAXBUFLEN));
+        memset(buffer, 0, (MAXBUFLEN));
+        sleep(1);
+        Display_printf(displayHandle, 0, 0, "=============All Erased===============");
+
+      NVS_close(nvsHandle);
+      return (NULL);
+}

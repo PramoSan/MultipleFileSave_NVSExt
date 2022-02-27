@@ -1,0 +1,55 @@
+/**
+ * These arguments were used when this file was generated. They will be automatically applied on subsequent loads
+ * via the GUI or CLI. Run CLI with '--help' for additional information on how to override these arguments.
+ * @cliArgs --board "/ti/boards/CC1352R1_LAUNCHXL" --rtos "tirtos" --product "simplelink_cc13xx_cc26xx_sdk@5.30.01.01"
+ * @versions {"tool":"1.10.0+2163"}
+ */
+
+/**
+ * Import the modules used in this configuration.
+ */
+const Display  = scripting.addModule("/ti/display/Display");
+const Display1 = Display.addInstance();
+const NVS      = scripting.addModule("/ti/drivers/NVS");
+const NVS1     = NVS.addInstance();
+
+/**
+ * Write custom configuration values to the imported modules.
+ */
+Display1.$name      = "CONFIG_Display_0";
+Display1.$hardware  = system.deviceData.board.components.XDS110UART;
+Display1.uart.$name = "CONFIG_UART2_0";
+
+NVS1.$hardware           = system.deviceData.board.components.MX25R8035F;
+NVS1.$name               = "CONFIG_NVSEXTERNAL";
+NVS1.externalFlash.$name = "ti_drivers_nvs_NVSSPI25X0";
+
+const CCFG              = scripting.addModule("/ti/devices/CCFG", {}, false);
+CCFG.ccfgTemplate.$name = "ti_devices_CCFGTemplate0";
+
+const NVSSPI25XDevice                         = scripting.addModule("/ti/drivers/nvs/NVSSPI25XDevice", {}, false);
+const NVSSPI25XDevice1                        = NVSSPI25XDevice.addInstance({}, false);
+NVSSPI25XDevice1.$name                        = "CONFIG_NVS_SPI_0";
+NVS1.externalFlash.spiFlashDevice             = NVSSPI25XDevice1;
+NVSSPI25XDevice1.slaveSelectPinInstance.$name = "CONFIG_GPIO_0";
+
+const SPI                          = scripting.addModule("/ti/drivers/SPI", {}, false);
+const SPI1                         = SPI.addInstance({}, false);
+SPI1.$name                         = "CONFIG_SPI_0";
+NVSSPI25XDevice1.sharedSpiInstance = SPI1;
+
+/**
+ * Pinmux solution for unlocked pins/peripherals. This ensures that minor changes to the automatic solver in a future
+ * version of the tool will not impact the pinmux you originally saw.  These lines can be completely deleted in order to
+ * re-solve from scratch.
+ */
+Display1.uart.uart.$suggestSolution           = "UART1";
+Display1.uart.uart.txPin.$suggestSolution     = "boosterpack.4";
+Display1.uart.uart.rxPin.$suggestSolution     = "boosterpack.3";
+NVSSPI25XDevice1.slaveSelect.$suggestSolution = "boosterpack.38";
+SPI1.spi.$suggestSolution                     = "SSI0";
+SPI1.spi.sclkPin.$suggestSolution             = "boosterpack.7";
+SPI1.spi.misoPin.$suggestSolution             = "boosterpack.14";
+SPI1.spi.mosiPin.$suggestSolution             = "boosterpack.15";
+SPI1.spi.dmaRxChannel.$suggestSolution        = "DMA_CH3";
+SPI1.spi.dmaTxChannel.$suggestSolution        = "DMA_CH4";
